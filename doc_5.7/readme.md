@@ -983,7 +983,7 @@ server {
 	location ~ /\.(?!well-known).* {
         deny all;
 	}
-}
+} 
 ```
 
 
