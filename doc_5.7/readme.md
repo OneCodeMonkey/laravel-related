@@ -942,19 +942,87 @@ This directory doesn't exist by default, but will be created for you if you exec
 
 #### Introduction
 
+When you're ready to deploy your Laravel application to production, there are some important things your can do to make sure your application is running as efficiently as possible. In this document, we'll cover some great starting points for making sure your Laravel application is deployed properly.
+
 #### Server Configuration
 
 ##### Nginx
+
+If you are deploying your application to a server that is running Nginx, you may use the following configuration file as a starting point for configuring your web server. Most likely, this file will need to be customized depending on your server's configuration. If you would like assistance in managing your server, consider using a service such as `Laravel Force`:
+
+```ini
+server {
+	listen 80;
+	server_name test.com;
+	root /test.com/public;
+	
+	add_header X-Frame-Options "SAMEORIGIN";
+	add_header X-XSS-Protection "1; mode=block";
+	add_header X-Content-Type-Options "nosniff";
+	
+	index index.html index.htm index.php;
+	
+	charset utf-8;
+	
+	location / {
+        try_files $uri $uri/ /index.php?$query_string;
+	}
+	
+	location = /favicon.ico {access_log off; log_not_found off;}
+	location = /robots.txt {access_log off; log_not_found off;}
+	
+	error_page 404 /index.php;
+	
+	location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php7.2-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+	}
+	
+	location ~ /\.(?!well-known).* {
+        deny all;
+	}
+}
+```
+
+
 
 #### Optimization
 
 ##### Autoloader Optimization
 
+When deploying to production environment, make sure that you are optimizing Composer's class autoloader map so Composer can quickly find the proper file to load for a given class:
+
+```shell
+composer install --optimize-autoloader --no-dev
+```
+
+
+
 ##### Optimizing Configuration Loading
+
+When deploying your application to production, you should make sure that you run the config:cache Artisan command during your deployment process:
+
+```php
+php artisan config:cache
+```
+
+This command will combine all of Laravel's configuration files into a single, cached file, which greatly reduces the number of trips the framework must make to the filesystem when loading your configuration values.
 
 ##### Optimizing Route Loading
 
+If you are building a large application with many routes, you should make sure that you are running the `route:cache` Artisan command during your deployment process:
+
+```shell
+php artisan route:cache
+```
+
+This command reduces all of your route registrations into a single method call within a cached file, improving the performance of route registration when registering hundreds of routes.
+
 #### Deploying With Forge
+
+This is a 3-rd party service, place it behind if I have enough experience with usage of it.  :)
 
 ## 3.Architecture Concepts
 
@@ -1063,5 +1131,3 @@ This directory doesn't exist by default, but will be created for you if you exec
 ### 10.5 Database
 
 ### 10.6 Mocking
-
-## 11.Official Packages
