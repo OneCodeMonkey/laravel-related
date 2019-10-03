@@ -2579,6 +2579,289 @@ Refer to the API documentation for both the `underlying class of the Route facad
 
 ### 5.1 Blade Templates
 
+#### Introduction
+
+Blade is the simple, yet powerful templating engine provided with Laravel. Unlike other popular PHP templating engines, Blade doesn't restrict you from using plain PHP code in you views. In fact all Blade views are compiled into plain PHP code and cached until they are modified, meaning Blade adds essentially zero overhead to your application. Blade view files use the `.blade.php` file extension and are typically stored in the `resources/views` directory.
+
+#### Template Inheritance
+
+##### Defining A Layout
+
+Two of the primary benefits of using Blade are template inheritance and sections. To get started ,let's take a look at a simple example. First, we will examine a "master" page layout. Since most web applications maintain the same general layout across various pages, it's convenient to define this layout as a single Blade view:
+
+```php+HTML
+<!-- Stored in resources/views/layouts/app.blade.php -->
+<html>
+    <head>
+        <title>appName - @yield('title')</title>
+    </head>
+    <body>
+        @section('sidebar')
+        	This is the master siderbar.
+        @show
+        <div class="container">
+            @yield('content')
+        </div>
+    </body>
+</html>
+```
+
+As we can see, this file contains typical HTML markup. However, take not of the `@section` and `@yield` directives. The `@section` directive, as the name implies, defines a section of content, while the `@yield` directive is used to display the contents of a given section.
+
+Now that we have defined a layout for our application, let's define a child page that inherits the layout.
+
+##### Extending A Layout
+
+When defining a child view, use the Blade `@extends` directive to specify which layout the child view should "inherit". Views which extend a Blade layout may inject content into the layout's sections using `@section` directives. Remember. as seen in the example above, the contents of these sections will be displayed in the layout using `@yield`:
+
+```php+HTML
+<!-- Stored in resources/views/child.blade.php -->
+@extends('layouts.app)
+@section('title', 'Page title')
+@section('sidebar')
+	@parent
+	<p>
+        This is appended to the master siderbar.
+	</p>
+@endsection
+@section('content')
+<p>This is my body content.</p>
+@endsection
+```
+
+In this example, the `sidebar` section is utilizing the `@parent` directive to append(rather than overwriting) content to the layout's siderbar. The `@parent` directive will be replaced by the content of the layout when the view is rendered.
+
+> Contrary to the previous example, this `sidebar` section ends with `@endsection` instead of `@show`. The `@endsection` directive will only define a section while `@show` will define and **immediately yield** the section. 
+
+Blade views may be returned from routes using the global `view` helper:
+
+```php
+Route::get('blade', function () {
+   	return view('child'); 
+});
+```
+
+
+
+#### Components & Slots
+
+Components and slots provide similar benefits to sections and layouts; however, some may find the mental model of components and slots easier to understand. First, let's imagine a reusable "alert" component we would like to reuse throughout out application:
+
+```php+HTML
+<!-- /resources/views/alert.blade.php -->
+<div class="alert alert-danger">
+    {{ $slot }}
+</div>
+```
+
+The `{{ $slot }}` variable will contain the content we wish to inject into the component. Now, to construct this component, we can use the `@component` Blade directive:
+
+```php+HTML
+@component('alert')
+	<strong>Whoops!</strong> Something went wrong!
+@endcomponent
+```
+
+Sometimes it's helpful to define multiple slots for a component. Let's modify our alert component to allow for the injection of a "title". Named slots may be displayed by "echoing" the variable that matches their name:
+
+```php+HTML
+<!-- /resources/views/alert.blade.php -->
+<div class="alert alert-danger">
+    <div class="alert-title">
+        {{ $title }}
+    </div>
+    {{ $slot }}
+</div>
+```
+
+Now, we can inject content into the named slot using the `@slot` directive. Any content not within a `@slot` directive will be passed to the component in the `@slot` variable:
+
+```php+HTML
+@component('title')
+	@slot('title)
+		Forbidden
+	@endslot
+	You aren't allowed to access their resource!
+@endcomponent
+```
+
+##### Passing Additional Data to components
+
+Sometimes you may need to pass additional data to a component. For this reason, you can pass an array of data as the second argument to the `@component` directive. All of the data will be made available to the component template as variables:
+
+```php+HTML
+@component('alert', ['foo' => 'bar'])
+	...
+@endcomponent
+```
+
+##### Aliasing Components
+
+If your Blade components are stored in a sub-directory, you may wish  to alias them for easier access. For example, imagine a Blade component that is stored at `resources/views/component/alert.blade.php`. You may use the `component` method to alias the component from `components.alert` to `alert`. Typically, this should be done in the `boot` method of your `AppServiceProvider`:
+
+```php
+use Illuminate\Support\Facades\Blade;
+
+Blade::component('components.alert', 'alert');
+```
+
+Once the component has been aliased, you may render it using a directive.
+
+```php+HTML
+@alert(['type' => 'danger'])
+	You are not allowed to access this resource!
+@endalert
+```
+
+You may omit the component parameters if it has no additional slots:
+
+```php+HTML
+@alert
+	You are not allowed to access this resource!
+@endalert
+```
+
+
+
+#### Displaying Data
+
+You may display data passed to your Blade views by wrapping the variable in curly braces. For example, given the following route:
+
+```php
+Route::get('greeting', function () {
+   	return view('welcome', ['name' => 'Samantha']); 
+});
+```
+
+You may display the contents of the `name` variable like so:
+
+```php+HTML
+Hello,{{ $name }}.
+```
+
+> Blade `{{ }}` statements are automatically sent through PHP's `htmlspecialchars` function to prevent XSS attacks.
+
+You aren't limited to displaying the contents of the variables passed to the view. You may also echo the results of any PHP function. In fact, you can put any PHP code you wish inside of a Blade echo statement:
+
+```php+HTML
+The current UNIX timestamp is {{ time() }}.
+```
+
+##### Dispalying unescaped Data
+
+By default, Blade `{{ }}` statements are automatically sent through PHP's `htmlspecialchars` function to prevent XSS attacks. If you don't want your data to be escaped, you may use the following syntax:
+
+```php+HTML
+Hello, {!! $name !!}.
+```
+
+> Be very careful when echoing content that's supplied by users of your application. Always use the escaped, double curly brace syntax to prevent XSS attacks when displaying user supplied data.
+
+##### Rendering JSON
+
+Sometimes you may pass an array to your view with the intension of rendering it as JSON in order to initialize a JavaScript variable. For example:
+
+```javascript
+<script>
+	var app = <?php echo json_encode($array); ?>;
+</script>
+```
+
+However, instead of manually calling `json_encode`, you may use the `@json` Blade directive:
+
+```javascript
+<script>
+	var app = @json($array)    
+</script>
+```
+
+##### HTML Entity Encoding
+
+By default, Blade (and the Laravel `e` helper) will double encode HTML entities. If you would like to disable double encoding, call the `Blade::withoutDoubleEncoding` method from the `boot` method of your `AppServiceProvider`:
+
+```php
+<?php
+    
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        Blade::withoutDoubleEncoding();
+    }
+}
+```
+
+
+
+#### Blade & Javascript Frameworks
+
+Since many JavaScript frameworks also use "curly" braces to indicate a given expression should be displayed in the browser, you may use the `@` symbol to inform the Blade rendering engine an expression should remain untouched. For example:
+
+```php+HTML
+<h1>
+    Laravel
+</h1>
+Hello, @{{ name }}.
+```
+
+In this example, the `@` symbol will be removed by Blade; However, {{ name }} expression will remain untouched by the Blade engine, allowing it to instead be rendered by your JavaScript framework.
+
+##### The `@verbatim` Directive
+
+If you are displaying JavaScript variables in a large partition of your template, you may wrap the HTML in the `@verbatim` directive so that you don't have to prefix each Blade echo statement with an `@` symbol:
+
+```php+HTML
+@verbatim
+	<div class="container">
+        Hello, {{ name }}
+	</div>
+@endverbatim
+```
+
+
+
+#### Control Structures
+
+##### If Statements
+
+##### Switch Statements
+
+##### Loops
+
+##### The Loop Variable
+
+##### Comments
+
+##### PHP
+
+#### Forms
+
+##### CSRF Field
+
+##### Method Field
+
+#### Including Sub-Views
+
+##### Rendering Views For Collections
+
+#### Stacks
+
+#### Service Injection
+
+#### Extending Blade
+
+##### Custom If Statements
+
 ### 5.2 Localization
 
 ### 5.3 Frontend Scaffolding
