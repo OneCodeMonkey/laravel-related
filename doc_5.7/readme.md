@@ -2832,35 +2832,443 @@ If you are displaying JavaScript variables in a large partition of your template
 
 #### Control Structures
 
+In addition to template inheritance and displaying data, Blade also provides convenient shortcuts for common PHP control structures, such as conditional statements and loops. These shortcust provide a very clean, terse way of working with PHP control structures, while also remaining familiar to their PHP counterparts.
+
 ##### If Statements
+
+You may construct `if` statements using the `@if`, `@elseif`, `@else`, and `@endif` directives. These directives function identically to their PHP counterparts:
+
+```php+HTML
+@if(count($records) === 1)
+ 	I have one record!
+@elseif(count($records) > 1)
+	I have multiple records!
+@else
+	I don't have any records!
+@endif
+```
+
+For convenience, Blade also provides an `@unless` directive:
+
+```php+HTML
+@unless(Auth::check())
+	You are not signed in.
+@endunless
+```
+
+In addition to the conditional directives already discussed, the `@isset` and `@empty` directives may be used a s convenient shortcuts for their respective PHP functions:
+
+```php+HTML
+@isset($records)
+	// $records is defined and is not null...
+@endisset
+@empty($records)
+	// $records is "empty"...
+@endempty
+```
+
+###### Authentication Directives
+
+The `@auth` and `@guest` directives may be used to quickly determine if the current user is authenticated or is a guest:
+
+```php+HTML
+@auth
+	// The user is authenticated...
+@endauth
+@guest
+	// The user is not authenticated...
+@endguest
+```
+
+If needed, you may specify the `authentication guard` that should be checked when using the `@auth` and `@guest` directives:
+
+```php+HTML
+@auth('admin')
+	// The user is authenticated...
+@endauth
+@guest('admin')
+	// The user is not authenticated...
+@endguest
+```
+
+###### Section Directives
+
+You may check if a section has content using the `@hasSection` direction:
+
+```php+HTML
+@hasSection('navigation')
+	<div class="pull-right">
+        @yield('navigation')
+	</div>
+	<div class="clearfix">
+	</div>
+@endif
+```
 
 ##### Switch Statements
 
+Switch statements can be constructed using the `@switch`, `@case`, `@break`, `@default` and `@endswitch` directives:
+
+```php+HTML
+@switch($i)
+	@case(1)
+		First case...
+		@break
+	@case(2)
+		Second case...
+		@break
+	@case(3)
+		Third case...
+		@break
+	@default
+		Default case...
+@endswitch
+```
+
 ##### Loops
+
+In addition to conditional statements, Blade provides simple directives for working with PHP's loop structures. Again, each of these directives functions identically to their PHP counterparts:
+
+```php+HTML
+@for($i = 0; $i < 10; $i++)
+ 	The current value is {{ $i }}
+@endfor
+@foreach($users as $user)
+   	<p>This is user {{ $user->id }}</p>
+@endforeach
+@forelse($users as $User)
+	<li>{{ $user->name }}</li>
+@empty
+	<p>No users</p>
+@endforelse
+@while(true)
+	<p>I am looping forever.</p>
+@endwhile
+```
+
+> When looping, you may use the `loop variable` to gain valuable information about the loop, such as whether you are in the first or last iteration through the loop.
+
+When using loops you may also end the loop or skip the current iteration:
+
+```php+HTML
+@foreach($users as $user)
+	@if($user->type == 1)
+		@continue
+	@endif
+	<li>{{ $user->name }}</li>
+	@if($user->number == 5)
+		@break
+	@endif
+@endforeach
+```
+
+You may also include the condition with the directive declaration in one line:
+
+```php+HTML
+@foreach($users as $user)
+	@continue($user->type == 1)
+	<li>{{ $user->name }}</li>
+	@break($user->number == 5)
+@endforeach
+```
 
 ##### The Loop Variable
 
+When looping, a `$loop` variable will be available inside of your loop. This variable provides access to some useful bits of information such as the current loop index and whether this is the first or last iteration through the loop:
+
+```php+HTML
+@foreach($users as $user)
+	@if($loop->first)
+		This is the first iteration.
+	@endif
+	@if($loop->last)
+		This is the last iteration.
+	@endif
+	<p>This is user {{ $user->id }}</p>
+@endforeach
+```
+
+If you are in a nested loop, you may access the parent loop's `$loop` variable via the `parent` property:
+
+```php+HTML
+@foreach($users as $user)
+	@foreach($user->posts as $post)
+		@if($loop->parent->first)
+			This is first iteration of the parent loop.
+		@endif
+	@endforeach
+@endforeach
+```
+
+The `$loop` variable also contains a variety of other useful properties:
+
+| Property         | Description                                            |
+| ---------------- | ------------------------------------------------------ |
+| $loop->index     | The index of the current loop iteration (starts at 0). |
+| $loop->iteration | The current loop iteration (starts at 1).              |
+| $loop->remaining | The iterations remaining in the loop.                  |
+| $loop->count     | The total number of items in the array being iterated. |
+| $loop->first     | Whether this is the first iteration through the loop.  |
+| $loop->last      | Whether this is the last iteration through the loop.   |
+| $loop->depth     | The nesting level of the current loop.                 |
+| $loop->parent    | When in a nested loop, the parent's loop variable.     |
+
 ##### Comments
 
+Blade also allows you to define comments in your vies. However, unlike HTML comments, Blade comments are not included in the HTML returned by your application:
+
+```php+HTML
+{{-- This comment will not be present in the rendered HTML --}}
+```
+
 ##### PHP
+
+In some situations, it's useful to embed PHP code into your views. You can use the Blade `@php` directive to execute a block of plain PHP within your template:
+
+```php+HTML
+@php
+	//
+@endphp
+```
+
+> Whether Blade provides this feature, using it frequently may be a signal that you have too much logic embedded within your template.
 
 #### Forms
 
 ##### CSRF Field
 
+Anytime we define a HTML form in your application, you should include a hidden CSRF token field in the form so that `the CSRF protection` middleware can validate the request. You may use the `@csrf` Blade directive to generate the token field:
+
+```php+HTML
+<form method="POST" action="/profile">
+   	@csrf 
+   	...
+</form>
+```
+
 ##### Method Field
+
+Since HTML forms can't make `PUT`, `PATCH` or `DELETE` requests, you will need to add a hidden `_method` field to spoof these HTTP verbs. The `@method` Blade directive can create this field for you:
+
+```php+HTML
+<form action="/foo/bar" method="POST">
+    @method('PUT')
+    ...
+</form>
+<form action="/foo/bar2" method="POST">
+    @method('PATCH')
+    ...
+</form>
+<form action="/foo/bar3" method="POST">
+    @method('DELETE')
+    ...
+</form>
+```
 
 #### Including Sub-Views
 
+Blade's `@include` directive allows you to include a Blade view from within another view. All variables that are available to the parent view will be made available to the included view:
+
+```php+HTML
+<div>
+    @include('shared.errors)
+    <form>
+        <!-- Form contents -->
+    </form>
+</div>
+```
+
+Even though the included view will inherit all data available in the parent view, you may also pass an array of extra data to the included view:
+
+```php+HTML
+@include('view.name', ['some' => 'data'])
+```
+
+If you attempt to `@include` a view which doesn't exist, Laravel will throw an error. If you would like to include a view that may or may not be present, you should use the `@includeIf` directive:
+
+```php+HTML
+@includeIf('view.name', ['some' => 'data'])
+```
+
+If you would like to `@include` a view depending on a given boolean condition, you may use the `@includeWhen` directive:
+
+```php+HTML
+@includeWhen($boolean, 'view.name', ['some' => 'data'])
+```
+
+To include the first view that exists from a given array of views, you may use the `includeFirst` directive:
+
+```php+HTML
+@includeFirst(['custom.admin', 'admin'], ['some' => 'data'])
+```
+
+> You should avoid using the `__DIR__` and `__FILE__` constants in your Blade views, since they will refer to the location of the cached, compiled view.
+
+###### Aliasing includes
+
+If your Blade includes are stored in a sub-directory, you may wish to alias them for easier access. For example, imagine a Blade include that is stored at `resources/views/includes/input.blade.php` with the following content:
+
+```php+HTML
+<input type="{{ $type ?? 'text' }}"/>
+```
+
+You may use the `include` method to alias the include form `includes.input` to `input`. Typically, this should be done in the `boot` method of your `AppServiceProvider`:
+
+```php
+use Illuminate\Support\Facades\Blade;
+
+Blade::include('includes.input', 'input');
+```
+
+Once the include has been aliased, you may render it using the alias name as the Blade directive:
+
+```php
+@input(['type' => 'email'])
+```
+
 ##### Rendering Views For Collections
+
+You may combine loops and includes into one line with Blade's `@each` directive:
+
+```php
+@each('view.name', $jobs, 'job')
+```
+
+The first argument is the view partial to render for each element in the array or collection. The second argument is the array or collection you wish to iterate over, while the third argument is the variable name that will be assigned to the current iteration within the view. So, for example, if you are iterating over an array of `jobs`, typically you will want to access each job as the `key` variable within your view partial.
+
+You may also pass a fourth argument to the `@each` directive. This argument determines the view that will be rendered if the given array is empty.
+
+```php
+@each('view.name', $jobs, 'job', 'view.empty')
+```
+
+> Views rendered via `@each` don't inherit the variables from the parent view. If the child view requires these variables, you should use `@foreach` and `@include` instead.
 
 #### Stacks
 
+Blade allows you to push to named stacks which can be rendered somewhere else in another view or layout. This can be particularly useful for specifying any JavaScript libraries required by your child views:
+
+```php+HTML
+@push('scripts')
+	<script src="/example.js"></script>
+@endpush
+```
+
+you may push to a stack as many times as needed. To render the complete stack contents, pass the name of the stack to the `@stack` directive:
+
+```php+HTML
+<head>
+    <!-- Head Contents -->
+    @stack('scripts')
+</head>
+```
+
+If you would like to prepend content onto the beginning of a stack, you should use the `@prepend` directive:
+
+```php+HTML
+@push('scripts')
+	This will be second...
+@endpush
+// Later...
+@prepend('scripts')
+	This will be first...往前插入
+@endprepend
+```
+
+
+
 #### Service Injection
+
+The `@inject` directive may be used toe retrieve a service from the Laravel `service container`. The first argument passed to `@inject` is the name of the variable the service will be placed into, while the second argument is the class or interface name of the service you wish toe resolve:
+
+```php+HTML
+@inject('metrics', 'App\Services\MetricsService')
+<div>
+    Monthly Revenue: {{ $metrics->monthlyRevenue() }}.
+</div>
+```
 
 #### Extending Blade
 
+Blade allows you to define your own custom directives using the `directive` method. When the Blade compiler encounters the custom directive, it will call the provided callback with the expression that the directive contains.
+
+The following example creates a `@datetime($var)` directive which formats a given `$var`, which should be an instance of `DateTime`:
+
+```php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Perform post-registration booting of services.
+     *
+     * @return  void
+     */
+    public function boot()
+    {
+        Blade::directive('datetime', function ($expression) {
+            return "<?php echo ($expression)->format('m/d/Y H:i'); ?>";
+        });
+    }
+     
+    /**
+     * Register bindings in the container.
+     *
+     * @return  void
+     */
+    public function register()
+    {
+  		//   	
+    }
+}
+```
+
+As we can see, we will chain the `format` method onto whatever expression is passed into the directive. So, in this example, the final PHP generated by this directive will be :
+
+```php
+<?php echo ($var)->format('m/d/Y H:i'); ?>
+```
+
+> After updating the logic of a Blade directive, you will need to delete all of the cached Blade views. The cached Blade views may be removed using the `view:clear` Artisan command.
+
 ##### Custom If Statements
+
+Programming a custom directive is sometimes more complex than necessary when defining simple, custom conditional statements. For that reason, Blade provides a `Blade::if` method which allows you to quickly define custom conditional directives using Closures. For example, let's define a custom conditional that checks the current application environment. We may do this in the `boot` method of our `AppServiceProvider`:
+
+```php
+use Illuminate\Support\Facades\Blade;
+
+/**
+ * Perform post-registration booting of services,
+ *
+ * @return  void
+ */
+public function boot()
+{
+    Blade::if('env', function($environment) {
+        return app()->environment($environment);
+    });
+}
+```
+
+Once the custom conditional has been defined, we can easily use it on our templates:
+
+```php+HTML
+@env('local')
+	// The application is in the local environment...
+@elseenv('testing')
+	// The application is in the testing environment...
+@else
+	// The application is not in the local or testing environment...
+@endenv
+```
+
+
 
 ### 5.2 Localization
 
