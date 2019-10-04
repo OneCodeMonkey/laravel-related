@@ -3272,6 +3272,172 @@ Once the custom conditional has been defined, we can easily use it on our templa
 
 ### 5.2 Localization
 
+#### Introduction
+
+Laravel's localization features provide a convenient way to retrieve strings in various languages, allowing you to easily support multiple languages within your application. Language strings are stored in files within the `resourcs/lang` directory. Within this directory there should be a subdirectory for each language supported by the application:
+
+```ini
+/resources
+	/lang
+		/en
+			messages.php
+		/es
+			messages.php
+```
+
+All language files return an array of keyed strings. For example:
+
+```php
+<?php
+return [
+    'welcome' => 'Welcome to our application'
+];
+```
+
+##### Configuring The Locale
+
+The default language for your application is stored in the `config/app.php` configuration file. You may modify this value to suit the needs of your application. You may also change the active language at runtime using the `setLocale` method on the `App` facade:
+
+```php
+Route::get('welcome/{locale}', function ($locale) {
+    App::setLocale($locale);
+});
+```
+
+You may configure a "fallcack language", which will be used when the active language does not contain a given translation string. Like the default language, the fallback language is also configured in the `config/app.php` configuration file:
+
+```php
+'fallback_locale' => 'en',
+```
+
+###### Determining The current locale
+
+You may use the `getLocale` and `isLocale` methods on the `App` facade to determine the current locale or check if the locale is a given value:
+
+```php
+$locale = App::getLocale();
+if(App::isLocale('en')) {
+    //
+}
+```
+
+#### Defining Translation Strings
+
+##### Using short keys
+
+Typically, translation strings are stored in files within the `resources/lang` directory. Within this directory there should be a subdirectory for each language supported by the application:
+
+```ini
+/resources
+	/lang
+		/en
+			messages.php
+		/es
+			messages.php
+```
+
+All language files return an array of keyed strings. For example:
+
+```php
+<?php
+// resources/lang/en/messages.php
+return [
+    'welcome' => 'Welcome to our application'
+]
+```
+
+##### Using Translation Strings As Keys
+
+For applications with heavy translation requirements, defining every string with a "short key" can become quickly confusing when referencing them in your views. For this reason, Laravel also provides support for defining translation strings using the "default" translation of the string as the key.
+
+Translation files that use translation strings as keys are stored as JSON files in the `resources/lang` directory. For example, if your application has a Spanish translation, you should create a `resources/lang/es.json` file:
+
+```json
+{
+    "I love programming.":"Me encanta programmar."
+}
+```
+
+#### Retrieving Translation Strings
+
+You may retrieve lines from language files using the `__` helper function. The `__` method accepts the file and key of the translation string as its first argument. For example, let's retrieve the `welcome` translation string from the `resources/lang/messages.php` language file:
+
+```php
+echo __('messages.welcome');
+echo __('I love programming');
+```
+
+If you are using the `Blade templating engine`, you may use the `{{ }}` syntax to echo the translation string or use the `@lang` directive:
+
+```php+HTML
+{{ __('messages.welcome') }}
+@lang('messages.welcome')
+```
+
+If the specified translation string doesn't exist, the `__` function will return the translation string key. So ,using the example above, the `__` function would return `messages.welcome` if the translation string doesn't exist.
+
+> The `@lang` directive doesn't escape any output. You are fully responsible for escaping your own output when using this directive.
+
+##### Replacing Parameters In Translation Strings
+
+If you wish, you may define placeholders in your translation strings. All placeholders are prefixed with a `:`. For example, you may define a welcome message with a placeholder name:
+
+```php
+'welcome' => 'Welcome, :name',
+```
+
+To replace the placeholders when retrieving a translation string, pass an array of replacements as the second argument to the `__` function:
+
+```php
+echo __('messages.welcome', ['name' => 'dayle']);
+```
+
+If your placeholder contains all capital letters, or only has its first letter capitalized, the translated value will be capitalized accordingly:
+
+```php
+'welcome' => 'Welcome, :NAME', 	// Welcome, DAYLE
+'goodbye' => 'Goodbye, :NAME', 	// Goodbye, Dayle
+```
+
+##### Pluralization
+
+Pluralization is a complex problem, as different languages have a variety of complex rules for pluralization. By using a "pipe" character, you may distinguish singular and plural forms of a string:
+
+```php
+'apples' => 'There is one apple|There are many apples',
+```
+
+You may even create more complex pluralization rules which specify translation strings for multiple number ranges:
+
+```php
+'apples' => '{0}There are none|[1,19] There are some|[20,*] There are many',
+```
+
+After defining a translation string that has pluralization options, you may use the `trans_choice` function to retrieve the line for a given "count". In this example, since the count is greater than one, the plural form of the translation string is returned:
+
+```php
+echo trans_choice('messages.apples', 10);
+```
+
+You may also define placeholder attributes in pluralization strings. These placeholders may be replaced by passing an array as the third argument to the `trans_choice` function:
+
+```php
+'minutes_ago' => '{1} :value minute ago|[2,*] :value minutes ago',
+echo trans_choice('time.minutes_ago', 5, ['value' => 5]);
+```
+
+If you would like to display the integer value that was passed to the `trans_choice` function, you may use the `:count` placeholder:
+
+```php
+'apples' => '{0} There are none|{1} There is one|[2,*] There are :count',
+```
+
+#### Overriding Package Language Files
+
+Some packages may ship with their own language files. Instead of changing the package's core files to tweak these lines, you may override them by placing files in the `resources/lang/vendor/{package}/{locale}` directory.
+
+So, for example, if you need to override the English translation strings in `message.php` for a package method `skyrim/hearthfire`, you should place a language file at: `resouces/lang/vendor/hearthfire/en/messages.php`. Within this file, you should only define the translation strings you wish to override. Any translation strings you don't override will still be loaded from the package's original language files.
+
 ### 5.3 Frontend Scaffolding
 
 ### 5.4 Compiling Assets
