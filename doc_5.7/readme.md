@@ -3637,7 +3637,7 @@ mix.less('resources/less/app.less', 'public/css', {
 The `sass` method allows you to compile `Sass` into CSS. You may use the method like so:
 
 ```javascript
-mix.sass('resources/sass/app.sass', 'public/css');
+mix.sass('resources/sass/app.scss', 'public/css');
 ```
 
 Again, like the `less` method, you may compile multiple Sass files into their own respective CSS  files and even customize the output directory of the resulting CSS:
@@ -3697,19 +3697,220 @@ mix.styles([
 ], 'public/css/all.css');
 ```
 
+##### URL Processing
+
+Because Laravel Mix is built on top of Webpack, it's important to understand a few Webpack concepts. For CSS compilation, Webpack will rewrite and optimize any `url()` calls within your stylesheets. While this might initially sound strange, it's an incredibly powerful piece of functionality. Imagine that we want to compile Sass that includes a relative URL to an image:
+
+```javascript
+.example {
+    background: url('../images/example.png');
+}
+```
+
+> Absolute paths for any given `url()` will be excluded from URL-rewriting. For example, `url('/images/thing.png')` or `url('http://example.com/images/thing.png')` won't be modified.
+
+By default, Laravel Mix and Webpack will find `example.png`, copy it to your `public/images` folder, and then rewrite the `url()` within your generated stylesheet. As such, your compiled CSS will be:
+
+```javascript
+.example {
+    background: url('/images/example.png');
+}
+```
+
+As useful as this feature may be, it's possible that your existing folder structure is already configured in a way you like. If this is the case, you may disable `url()` rewriting like so:
+
+```javascript
+mix.sass('resources/app/app.scss', 'public/vss')
+    .options({
+    	processCssUrls: false
+	});
+```
+
+With this addition to your `webpack.mix.js` file, Mix will no longer match any `url()` or copy assets to your public directory. In other words, the compiled CSS will look just loke how you originally typed it:
+
+```javascript
+.example {
+    background: url('../images/thing.png');
+}
+```
+
+##### Source Maps
+
+Though disabled by default, source maps may be activated by calling the `mix.sourceMaps()` method in your `webpack.mix.js` file. Though it comes with a compile/performance cost, this will provide extra debugging information to your browser's developer tools when using compiled assets.
+
+```javascript
+mix.js('resources/js/app.js', 'public/js')
+	.sourceMaps();
+```
+
 
 
 #### Working with JavaScript
 
+Mix provides several features to help you work with your JavaScript files, such as compiling ECMAScript 2015, module bundling, minification, and concatenating plain JavaScript files. Even better, this all works seamlessly, without requiring an ounce of custom configuration:
+
+```javascript
+mix.js('resources/js/app.js', 'public/js');
+```
+
+With this single line of code, you may now take advantage of:
+
+- ES2015 syntax.
+- Modules
+- Compilation of `.vue` files.
+- Minification for production environments.
+
+##### Vendor Extraction
+
+One potential downside to bundling all application-specific JavaScript with your vendor libraries is that it makes long-term caching more difficult. For example, a single update to your application code will force the browser to re-download all of your vendor libraries even if they haven't changed.
+
+If you intend to make frequent updates to your application's JavaScript, you should consider extracting all of your vendor libraries into their own file. THis way, a change to your application code will not affect the caching of your large `vendor.js` file. Mix's `extract` method makes this a breeze:
+
+```javascript
+mix.js('resources/js/app.js', 'public/js')
+	.extract(['vue'])
+```
+
+The `extract` method accepts an array of all libraries or modules that you wish to extract into a `vendor.js` file. Using the above snippet as an example, Mix will generate the following files:
+
+- `public/js/manifest.js`: The Webpack manifest runtime
+- `public/js/vendor.js`: Your vendor libraries
+- `public/js/app.js`: Your application code
+
+To avoid JavaScript errors, be sure to load these files in the proper order:
+
+```javascript
+<script src="/js/manifest.js"></script>
+<script src="/js/vendor.js"></script>
+<script src="/js/app.js"></script>
+```
+
+##### React
+
+Mix can automatically install the Babel plug-ins necessary for React support. To get started, replace your `mix.js()` call with `mix.react()`:
+
+```javascript
+mix.react('resources/js/app.jsx', 'public/js');
+```
+
+Behind the scenes, Mix will download and include the appropriate `babel-preset-react` Babel plug-in.
+
+##### Vanilla JS
+
+Similar to combining stylesheets with `mix.styles()`, you may also combine and minify any number of JavaScript files with the `scripts()` method:
+
+```javascript
+mix.scripts([
+    'public/js/admin.js',
+    'public/js/dashboard.js',
+], 'public/js/all.js');
+```
+
+The option is particularly useful for legacy projects where you don't require Webpack compilation for your JavaScript.
+
+> A slight variation of `mix.scripts()` is `mix.babel()`. Its method signature is identical to `scripts`; however, the concatenated file will receive Babel compilation, which translates any ES2015 code to vanilla JavaScript that all browsers will understand.
+
+##### Custom Webpack configuration
+
+Behind the scenes, Laravel Mix references a pre-configured `webpack.config.js` file to get you up and running as quickly as possible. Occasionally, you may need to manually modify this file. You might have a special loader or plug-in that needs to be referenced, or maybe you prefer to use Stylus instead of Sass In such instances, you have two choices:
+
+###### Merging custom configuration
+
+Mix provides a useful `webpackConfig` method that allows you to merge any short Webpack configuration overrides. This is a particularly appealing choice, as it doesn't require you to copy and maintain your own copy of the `webpack.config.js` file. The `webpackConfig` method accepts an object, which should contain any `Webpack-specific configuration` that you wish to apply.
+
+```javascript
+mix.webpackConfig({
+    resolve: [
+        modules: [
+            path.resolve(__dirname, 'vendor/laravel/spark/resources/assets/js')
+        ]
+    ]
+});
+```
+
+###### Custom configuration files
+
+If you would like to completely customize your Webpack configuration, copy the `node_modules/laravel-mix/setup/webpack.config.js` file to your projects's root directory. Next, point all of the `--config` references in your `package.json` file to the newly copied configuration file. If you choose to take this approach to customization, any future upstream updates to Mix's `webpack.config.js` must be manually merged into your customized file.
+
 #### Copying files & Directories
+
+The `copy` method may be used to copy files and directories to new locations. This can be useful when a particular asset within your `node_modules` directory needs to be relocated to your `public` folder.
+
+```javascript
+mix.copy('node_modules/foo/bar.css', 'public/css/bar.css');
+```
+
+When copying a directory, the `copy` method will flattern the directory's structure. To maintain the directory's original structure, you should use the `copyDirectory` method instead.
+
+```javascript
+mix.copyDirectory('resources/img', 'public/img');
+```
 
 #### Versioning/Cache Busting
 
+Many developers suffix their compiled assets with a timestamp or unique token to force browsers to load the fresh assets instead of serving stale copies of the code. Mix can handle this for you using the `version` method.
+
+The `version` method will automatically append a unique hash to the filenames of all compiled files, allowing for more convenient cache busting:
+
+```javascript
+mix.js('resources/js/app.js', 'public/js')
+	.version();
+```
+
+After generating the versioned file, you won't know the exact file name. So, you should use Laravel's global `mix` function within your `views` to load the appropriately hashed asset. The `mix` function will automatically determine the current name of the hashed file:
+
+```javascript
+<script src="{{ mix('/js/app.js') }}"></script>
+```
+
+Because versioned files are usually unnecessary in development, you may instruct the versioning process to only run during `npm run production`:
+
+```javascript
+mix.js('resources/js/app.js', 'public/js');
+if(mix.inProduction()) {
+    mix.version();
+}
+```
+
 #### Browsersync Reloading
+
+`BrowserSync` can automatically monitor your files for changes, and inject your changes into the browser without requiring a manual refresh. You may enable support by calling the `mix.browserSync()` method:
+
+```javascript
+mix.browserSync('mydomain.test');
+// or..
+
+// https://browsersync.io.docs/options
+mix.browserSync({
+    proxy: 'mydomain.test'
+});
+```
+
+You may pass either a string(proxy) or object (BrowserSync settings) to this method. Next, start Webpack's dev server using the `npm run watch` command. Now, when you modfy a script or PHP file, watch as the browser instantly refreshes the page to reflect your changes.
 
 #### Environment variables
 
+You may inject environment variables into Mix by prefixing a key in your `.env` file with `MIX_`:
+
+```ini
+MIX_SENTRY_DSN_PUBLIC=http://example.com
+```
+
+After the variable has been defined in your `.env` file, you may access via the `process.env` object. If the value changes while you are running a `watch` task, you will need to restart the task:
+
+```ini
+process.env.MIX_SENTRY_DSN_PUBLIC
+```
+
 #### Notifications
+
+When a available, Mix will automatically display OS notifications for each bundle. This will give you instant feedback, as to whether the compilation was successful or not. However, there may be instances when you would prefer to disable these notifications. One such example might be triggering Mix on your production server. Notifications may be deactivated, via the `disableNotifications` method.
+
+```javascript
+mix.disableNotifications();
+```
+
+
 
 ## 6.Security
 
