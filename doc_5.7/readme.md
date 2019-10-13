@@ -5668,6 +5668,89 @@ Validator::extendImplicit('foo', function ($attribute, $value, $parameters, $val
 
 ### 4.11 Error Handling
 
+#### Introduction
+
+When we start a new Laravel project, erro and exception handling is already configured for you. The `App\Exceptions\Handler` class is where all exceptions triggered by your application are logged and then rendered back to the user. We'll dive deeper into this class throughout this documentation.
+
+#### Configuration
+
+The `debug` option in your `config/app.php` configuration file determines how much information about an error is actually displayed to the user. By default, this option is set to respect the value of the `APP_DEBUG` environment variable, which is stored in your `.env` file.
+
+For local development, you should set the `APP_DEBUG` environment variable to `true`. In your production environment, this value should always be `false`. If the value is set to `true` in production, you risk exposing sensitive configuration values to your application's end users.
+
+#### The Exception Handler
+
+##### Report Method
+
+All exceptions are handled by the `App\Exceptions\Handler` class. This class contains two methods: `report` and `render`. We'll examine each of these methods in detail. The `report` method is used to log exceptions or send them to an external service like `Bugsnag` or `Sentry`. By default the `report` method passes the exception to the base class where the exception is logged. However, you are free to log exceptions however you wish.
+
+For example, if you need to report different types of exceptions in different ways, you may use the PHP `instanceof` comparison operator:
+
+```php
+/**
+ * Report or log an exception.
+ *
+ * This is a great spot to send exceptions to Sentry, Bugsnag, etc.
+ *
+ * @param  \Exception  $exception
+ * @return  void
+ */
+public function report(Exception $exception)
+{
+    if($exception instanceof CustomExceptioon) {
+        //
+    }
+    parent::report($exception);
+}
+```
+
+> Instead of making a lot of `instanceof` checks in your `report` method, consider using `The basics/errors/reportable-exceptions`
+
+###### The `report` helper
+
+Sometimes you may need to report an exception but continue handling the current request. The `report` helper function allows you to quickly report an exception using your exception handler's `report` method without rendering an error page:
+
+```php
+public function isValid($value)
+{
+    try{
+        // Validate the value..
+    } catch(Exception $e) {
+        report($e);
+        return false;
+    }
+}
+```
+
+###### Ignoring Exceptions By Type
+
+The `$dontReport` property of the exception handler contains an array of exception types that won't be logged. For example, exceptions resulting from 404 errors, as well as several other types of errors, aren't written to your log files. You may add other exception types to this array as needed:
+
+```php
+/**
+ * A list of exception types that should not be reported.
+ *
+ * @var  array
+ */
+protected $dontReport = [
+    \Illuminate\Auth\AuthenticationException::class,
+    \Illuminate\Auth\Access\AuthorizationException::class,
+    \Sympony\Component\HttpKernel\Exception\HttpException::class,
+    \Illuminate\Database\Eloquent\ModelNotFoundException::class,
+    \Illuminate\Validation\ValidationException::class,
+];
+```
+
+
+
+##### Render Method
+
+##### Reportable & Renderable Exceptions
+
+#### HTTP Exceptions
+
+##### Custom HTTP Error Pages
+
 ### 4.12 Logging
 
 ## 5.Frontend
