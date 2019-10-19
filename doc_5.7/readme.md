@@ -7476,6 +7476,139 @@ mix.disableNotifications();
 
 ### 6.1 Authentication
 
+##### Introduction
+
+> To get started, just run `php artisan make:auth` and `php artisan migrate` in a fresh Laravel application. Then navigate our browser to `http://myapp.test/register` or any other URL that is assigned to our application. These two commands will take care of scaffolding your entire authentication system!
+
+Laravel makes implementing authentication very simple. In fact, almost everything is configured for you out of the box. The authentication configuration file is located at `config/auth.php`, which contains several well documented options for tweaking the behavior of the authentication services.
+
+At its core, Laravel's authentication facilities are made up of "guards" and "providers". Guards define how users are authenticated for each request. For example, Laravel ships with a `session` guard which maintains state using session storage and cookies.
+
+Providers define how users are retrieved from your persistent storage. Laravel ships with support for retrieving users using Eloquent and the database query builder. However, you are free to define additional providers as needed for your application.
+
+Don't worry if this all sounds confusing now! Many applications will never need to modify the default authentication configuration.
+
+##### Database Considerations
+
+By default, Laravel includes an `App\User` **Eloquent model** in your `app` directory. This model may be used with the default Eloquent authentication driver. If your application isn't using Eloquent, you may use the `database` authentication driver which uses the Laravel query builder.
+
+When building the database schema for the `App\User` model, make sure the password column is at least 60 characters in length. Maintaining the default string column length of 255 characters would be a good choice.
+
+Also, you should verify that your `users` (or equivalent) table contains a nullable, string `remember_token` column of 100 characters. This column will be used to stored a token for users that select the "remember me" option when logging into your application. 
+
+#### Authentication Quickstart
+
+Laravel ships with several pre-built authentication controllers, which are located in the `App\Http\Controllers\Auth` namespace. The `RegisterController` handles new user registration, the `LoginController` handles authentication, the `ForgotPasswordController` handles emailing links for resetting passwords, and the `ResetPasswordController` contains the logic to reset passwords. Each of these controllers uses a trait to include their necessary methods. For many applications, you won't need to modify these controllers at all.
+
+##### Routing
+
+Laravel provides a quick way to scaffold all of the routes and views you need for authentication using one simple command.
+
+```shell
+php artisan make:auth
+```
+
+This command should be used on fresh applications and will install a layout view, registration and login views, as well as routes for all authentication end-points. A `HomeController` will also be generated to handle post-login requests to your application's dashboard.
+
+> If your application doesn't need registration, you may disable it by removing the newly created `RegisterController` and modifying your route declaration: `Auth::routes(['register' => false]);`
+
+##### Views
+
+As mentioned in the previous section, the `php artisan make:auth` command will create all of the views your need for authentication and place them in the `resources/views/auth` directory.
+
+The `make:auth` command will also create a `resources/views/layouts` directory containing a base layout for your application. All of these views use the Bootstrap CSS framework, but your are free to customize them however you wish.
+
+##### Authenticating
+
+Now that you have routes and views setup for the included authentication controllers, you are ready to register and authenticate new users for your application! You may access your application in a browser since the authentication controllers already contain the logic (via their traits) to authenticate existing users and store new users in the database.
+
+###### Path Customization
+
+When a user is successfully authenticated, they will be redirected to the `/home` URI. You can customize the post-authentication redirect location by defing a `redirectTo` property on the `LoginController`, `RegisterController`, `ResetPasswordController`, and `VerificationController`:
+
+```php
+protected $redirectTo = '/';
+```
+
+Next you should modify the `RedirectIfAuthenticated` middleware's `handle` method to use your new URI when redirecting the user.
+
+If the redirect path needs custom generation logic you may define a `redirectTo` method instead of a `redirectTo` perperty:
+
+```php
+protected function redirectTo()
+{
+    return '/path';
+}
+```
+
+> The `redirectTo` method will take precedence(优先权) over the `redirectTo` attribute.
+
+###### Username Customization
+
+By default, Laravel uses the `email` field for authentication. If you would like to customize this, you may define a `username` method on your `LoginController`:
+
+```php
+public function username()
+{
+    return 'username';
+}
+```
+
+###### Guard Customization
+
+You may also customize the "guard" that is used to authenticate and register users. To get started, define a `guard` method on your `LoginController`, `RegisterController`, and `ResetPasswordController`. The method shoule return a guard instance:
+
+```php
+use Illuminate\Support\Facades\Auth;
+
+protected function guard()
+{
+    return Auth::guard('guardname');
+}
+```
+
+###### Validation / Storage Customization
+
+To modify the form fields that are required when a new user registers with your application, or to customize how new users are stored into your database, you may modify the `RegisterController` class. This class is responsible for validating and creating new users of your application.
+
+The `validator` method of the `RegisterController` contains the validation rules for new users of the application. You are free to modify this method as you wish.
+
+The `create` method of the `RegisterController` is responsible for creating new `App\User` records in your database using the `Eloquent ORM`. You are free to modify this method according to the needs of your database.
+
+##### Retrieving The Authenticated User
+
+##### Protecting Routes
+
+##### Login Throtting
+
+#### Manually Authenticating Users
+
+##### Remembering Users
+
+##### Other Authentication Methods
+
+#### HTTP Basic Authentication
+
+##### Stateless HTTP Basic Authentication
+
+#### Logging Out
+
+##### Invalidating Sessions On Other Devices
+
+#### Social Authentication
+
+#### Adding Custom Guards
+
+##### Closure Request Guards
+
+#### Adding Custom User Providers
+
+##### The User Provider Contract
+
+##### The Authenticatable Contract
+
+#### Events
+
 ### 6.2 API Authentication
 
 ### 6.3 Authorization
@@ -7489,6 +7622,30 @@ mix.disableNotifications();
 ### 6.7 Password Reset
 
 ## 7.Digging Deeper
+
+### Artisan Console
+
+### Broadcasting
+
+### Cache
+
+### Collections
+
+### Events
+
+### File Storage
+
+### Helpers
+
+### Mail
+
+### Notifications
+
+### Package Developments
+
+### Queues
+
+### Task Scheduling
 
 ## 8.Database
 
