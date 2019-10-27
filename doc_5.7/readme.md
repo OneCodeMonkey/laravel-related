@@ -8309,6 +8309,93 @@ try{
 
 ### 6.6 Hashing
 
+#### Introduction
+
+The Laravel `Hash` **facade** provides secure Bcrypt and Argon2 hasing for storing user passwords. If we are using the built-in `LoginController` and `RegisterController` classes that are included with our Laravel application, they will use Bcrypt for registration and authentication by default.
+
+> Bcrypt is a great choice for hasing passwords because its "work factor" is adjustable, which means that the time it takes to generate a hash can be increased as hardware power increases.
+
+#### Configuration
+
+The default hashing driver for our application is configured in the `config/hashing.php` configuration file. There are currently three supported drivers: **Bcrypt** and **Argon2** (Argon2i and Argon2id variants).
+
+> The Argon2i driver requires PHP7.2.0 or greater and the Argon2id driver requires PHP 7.3.0 or greater.
+
+#### Basic Usage
+
+We may hash a password by calling the `make` method on the `Hash` facade:
+
+```php
+<?php
+    
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Controller;
+
+class UpdatePasswordController extends Controller
+{
+    /**
+     * Update the password for the user.
+     *
+     * @param  Request  $request
+     * @return  Response
+     */
+    public function update(Request $request)
+    {
+        // Validate the new password length...
+        $request->user()->fill([
+            'password' => Hash::make($request->newPassword);
+        ])->save();
+    }
+}
+```
+
+###### Adjusting The Bcrypt Work Factor
+
+If we are using the Bcrypt algorithm, the `make` method allows us to manage the work factor of the algorithm using the `rounds` option; however, the dafault is acceptable for most applications:
+
+```php
+$hashed = Hash::make('password', [
+    'rounds' => 12
+]);
+```
+
+###### Adjusting The Argon2 Work Factor
+
+If you are using the Argon2 algorithm, the `make` method allows us to manage thew work factor of the algorithm using the `memory`, `time` and `threads` options; however, the dafaults are acceptable for most applications:
+
+```php
+$hashed = Hash::make('password', [
+    'memory' => 1024,
+    'time' => 2,
+    'threads' => 2,
+]);
+```
+
+###### Verify a password against a hash
+
+The`check` method allows you to verify that a given plain-text string corresponds to a given hash. However, if we are using the `LoginController` **included with Laravel**, we will probably not need to use this directly, as this controller automatically calls this method:
+
+```php
+if(Hash::check('plain-text', $hashedPassword)) {
+    // The passwords match...
+}
+```
+
+###### Checking if a password needs to be rehashed
+
+The `needsRehash` function allows you to determine if the work factor used by the hasher has changed since the password was hashed:
+
+```php
+if(Hash::needsRehash($hashed)) {
+    $hashed = Hash::make('plain-text');
+}
+```
+
+
+
 ### 6.7 Password Reset
 
 ## 7.Digging Deeper
