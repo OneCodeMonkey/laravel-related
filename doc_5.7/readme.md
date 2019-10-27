@@ -8149,7 +8149,107 @@ protected $listen = [
 
 ### 6.2 API Authentication
 
+#### Introduction
+
+#### Installation
+
+##### Frontend Quickstart
+
+##### Deploying Passport
+
+#### Configuration
+
+##### Token Lifetimes
+
+##### Overriding Default Models
+
+#### Issuing Access Tokens
+
+##### Managing Clients
+
+##### Requesting Tokens
+
+##### Refreshing Tokens
+
+#### Password Grant Tokens
+
+##### Creating A Password Grant Client
+
+##### Requesting Tokens
+
+##### Requesting All Scopes
+
+##### Customizing The Username Field
+
+#### Implicit Grant Tokens
+
+#### Client Credentials Grant Tokens
+
+#### Personal Access Tokens
+
+##### Creating A personal access client
+
+##### Managing Personal access tokens
+
+#### Protecting Routes
+
+##### Via Middleware
+
+##### Passing The Access Token
+
+#### Token Scopes
+
+##### Defining Scopes
+
+##### Default Scope
+
+##### Assigning Scopes To Tokens
+
+##### Checking Scopes
+
+#### Consuming Your API With JavaScript
+
+#### Events
+
+#### Testing
+
 ### 6.3 Authorization
+
+#### Introduction
+
+#### Gates
+
+##### Writing Gates
+
+##### Authorizing Actions
+
+##### Intercepting Gate Chekcs
+
+#### Creating Policies
+
+##### Generating Policies
+
+##### Registering Policies
+
+#### Writing Policies
+
+##### Policy Methods
+
+##### Methods Without Models
+
+##### Guest Users
+
+##### Policy Filters
+
+#### Authorizing Actions Using Policies
+
+##### Via The User model
+
+##### Via Middleware
+
+##### Via Controller Helpers
+
+##### Via Blade Templates
 
 ### 6.4 Email Verification
 
