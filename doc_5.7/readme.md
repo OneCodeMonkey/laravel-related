@@ -8238,6 +8238,75 @@ protected $listen = [
 
 ### 6.5 Encryption
 
+#### Introduction
+
+Laravel's encrypter uses OpenSSL to provide AES-256 and AES-128 encryption. You are strongly encouraged to use Laravel's built-in encryption facilities and not attempt to roll your own "home grown" encryption algorithms. All of Laravel's encrypted values are signed using a message authentication code(MAC) so that their underlying value can not be modified once encrypted.
+
+#### Configuration
+
+Before using Laravel's encrypter, we must set a `key` option in `config/app.php` configuration file. We should use the `php artisna key:generate` command to generate this key since this artisan command will use PHP's secure random bytes generator to build our key. If this value isn't properly set, all values encrypted by Laravel will be insecure.
+
+#### Using The Encrypter
+
+###### Encrypting A Value
+
+We may encrypt a value using the `encrypt` helper. All encrypted values are encrypted using OpenSSL and the `AES-256-CBC` cipher. Furthermore, all encrypted values are signed with a message authentication code (MAC) to detect any modifications to the encrypted string:
+
+```php
+<?php
+    
+namespace App\Http\Controllers;
+
+use App\User;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+
+class UserController extends Controller
+{
+    /**
+     * Store a secret message for the user.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return  Response
+     */
+    public function storeSecret(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $user->fill([
+            'secret' => encrypt($request->secret);
+        ])->save();
+    }
+}
+```
+
+###### Encrypt without Serialization
+
+Encrypted values are passed through `serialize` during encryption, which allows for encryption of objects and arrays. Thus, non-PHP clients receiving encrypted values will need to `unserialize` the data. If we would like to encrypt and decrypt values without serialization, we may use the `encryptString` and `decryptString` methods of the `Crypt` facade:
+
+```php
+use Illuminate\Support\Facades\Crypt;
+
+$encrypted = Crypt::encryptString('Hello world.');
+$decrypted = Crypt::decryptString($encrypted);
+```
+
+###### Decrypt a value
+
+We may decrypt values using the `decrypt` helper. If the value cannot be properly decrypted, such as when the MAC is invalid, an `Illuminate\Contracts\Encryption\DecryptException` will be thrown.
+
+```php
+use Illuminate\Contracts\Encryption\DecryptException;
+
+try{
+    $decrypted = decrypt($encryptedValue);
+} catch(DecryptException $e) {
+    //
+}
+```
+
+
+
 ### 6.6 Hashing
 
 ### 6.7 Password Reset
