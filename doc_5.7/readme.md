@@ -8151,25 +8151,407 @@ protected $listen = [
 
 #### Introduction
 
+Laravel already makes it easy to perform authentication via traditional login forms, but what about APIs? APIs typically use tokens to authenticate users and don't maintain session state between requests. Laravel makes API authentication a breeze using **Laravel Passport**， which provides a full OAuth2 server implementation for your Laravel application in a matter of minutes. Passport is built on top of the **League OAuth2 server** that is maintained by Andy Millington and Simon Hamp.
+
+> This documentation assumes that you are already familiar with OAuth2. 
+
 #### Installation
+
+To get started, install Passport via the `Composer`:
+
+```shell
+composer require laravel/passport
+```
+
+The `Passport` service provider registers its own database migration directory with the framework, so you should migrate your database after installing the package. The Passport migrations will create the tables your application needs to store clients and access tokens:
+
+```php
+php artisan migrate
+```
+
+Next, you should run the `passport:install` command. This command will create the encryption keys needed to generate secure access tokens. In addition, the command will create "personal access" and "password grant" clients which will be used to generate access tokens:
+
+```shell
+php artisan passport:install
+```
+
+After running this command, add the `Laravel/Passport/HasApiTokens` trait to your `App\User` model. This trait will provide a few helper methods to your model which allow you to inspect the authenticated user's token and scopes:
+
+```php
+<?php
+    
+namespace App;
+
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, Notifiable;
+}
+```
+
+Next, you should call the `Passport::routes` method within the `boot` method of your `AuthServiceProvider`. This method will register the routes necessary to issue access tokens and revoke access tokens, clients, and personal access tokens:
+
+```php
+<?php
+    
+namespace App;
+
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, Notifiable;
+}
+```
+
+Next, you should call the `Passport::routes` method within the `boot` method of your `AuthServiceProvider`. This method will register the routes necessary to issue access tokens and revoke access tokens, clients, and personal access tokens:
+
+```php
+<?php
+    
+namespace App\Providers;
+
+use Laravel\Passport\Passport;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Foundation\Support\Provides\AuthServiceProvider as ServiceProvider;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    /**
+     * The policy mappings for the application.
+     *
+     * @var  array
+     */
+    protected $policies = [
+        'App\Model' => 'App\Policies\ModelPolicy',
+    ];
+    
+    /**
+     * Register any authenticcation/authorization services.
+     *
+     * @return  void
+     */
+    public function boot()
+    {
+        $this->registerPolicies();
+        Passport::routes();
+    }
+}
+```
+
+Finally, in your `config/auth.php` configuration file, you should set the `driver` option of the `api` authentication guard to `passport`. This will instruct your application to use Passport's `TokenGuard` when authenticating incoming API requests:
+
+```php
+'guard' => [
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'users',
+    ],
+    'api' => [
+        'driver' => 'passport',
+        'provider' => 'users',
+    ],
+];
+```
+
+##### Migration Customization
+
+If you aren't going to use Passport's default migrations, you should call the `Passport::ignoreMigrations` method in the `register` method of your `AppServiceProvider`. You may export the default migrations using `php artisan vendor:publish --tag=passport-migrations`.
+
+By default, Passport uses an integer column to store the `user_id`. If your application uses a different column type to identify users(for example: UUIDs), you should modify the default Passport migrations after publishing them.
 
 ##### Frontend Quickstart
 
+> In order to use the Passport Vue components, you must be using the **Vue** Javascript framework. These components also use the Bootstrap CSS framwork. However, even if your aren't using these tools, the components serve as a valuable reference for your own frontend implementation.
+
+Passport ships with a JSON API that you may use to allow your users to create clients and personal access tokens. However, it can be time consuming to code a frontend to interact with these APIs. So, Passport also includes pre-built **vue** components you may use as an example implementation or starting point for your own implementation.
+
+To publish the Passport Vue components, use the `vendor:publish`:
+
+```shell
+php artisan vendor:publish --tag=passport-components
+```
+
+The published components will be placed in your `resources/js/components` directory. Once the components have been published, you should register them in your `resources/js/app.js` file:
+
+```vue
+Vue.component(
+	'passport-clients',
+	require('./components/passport/Clients.vue').default
+);
+Vue.component(
+	'passport-authorized-clients',
+	require('./components/passport/AuthorizedClients.vue').default
+);
+Vue.component(
+	'passport-personal-access-tokens',
+	require('./components/passport/PersonalAccessTokens').default
+);
+```
+
+After registering the components, make sure to run `npm run dev` to recompile your assets. Once you have recompiled your assets, you may drop the components into one of your application's templates to get started creating clients and personal access tokens:
+
+```html
+<passport-clients></passport-clients>
+<passport-authorized-clients></passport-authorized-clients>
+<passport-personal-access-tokens></passport-personal-access-tokens>
+```
+
 ##### Deploying Passport
+
+When deploying Passport to your production servers for the first time, you will likely need to run the `passport:keys` command. This command generates the encryption keys Passport needs in order to generate access token. The generated keys aren't typically kept in source control:
+
+```shell
+php artisan passport:keys
+```
+
+If necessary, you may define the path where Passport's keys should be loaded from. You may use the `Passport::loadKeysFrom` method to accomplish this:
+
+```php
+/**
+ * Register any authentication/authorization services.
+ *
+ * @return  void
+ */
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::loadKeysFrom('/secret-keys/oauth');
+}
+```
 
 #### Configuration
 
 ##### Token Lifetimes
 
+By default, Passport issues long-lived access tokens that expire after one year. If you would like to configure a longer/shorter token lifetime, you may use the `tokensExpireIn` and `refreshTokensExpireIn` methods. These methods should be called from the `boot` method of your `AuthServiceProvider`:
+
+```php
+/**
+ * Register any authentication/authorization services.
+ *
+ * @return  void
+ */
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::tokensExpireIn(now()->addDays(15));
+    Passport::refreshTokensExpireIn(now()->addDays(30));
+}
+```
+
+
+
 ##### Overriding Default Models
+
+You are free to extend the models used internally by Passport. Then, you may instruct Passport to use your custom models via the `Passport` class:
+
+```php
+// ...
+
+use App\Models\Passport\Client;
+use App\Models\Passport\AuthCode;
+use App\Models\Passport\TokenModel;
+use App\Models\Passport\PersonalAccessClient;
+
+/**
+ * Register any authentication/authorization services.
+ *
+ * @return  void
+ */
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::useClientModel(Client::class);
+    Passport::useTokenModel(TokenModel::class);
+    Passport::useAuthCodeModel(AuthCode::class);
+    Passport::usePersonalAccessClientModel(PersonalAccessClient::class);
+}
+```
+
+
 
 #### Issuing Access Tokens
 
+Using OAuth2 with authorization codes is how most developers are familiar with OAuth2. When using authorization codes, a client application will redirect a user to your server where they will either approve or deny the request to issue an access token to the client.
+
 ##### Managing Clients
+
+First developers building applications that need to interact with your application's API will need to register their application with yours by creating a "client". Typically, this consists of providing the name of their application and a URL that your application can redirect to after users approve their request for authorization.
+
+###### The `passport:client` Command
+
+The simplest way to create a client is using the `passport:client` Artisan command. This command may be used to create your own clients for testing your OAuth2 functionality. When you run the `client` command, Passport will prompt you for more information about your client and will provide you with a client ID and secret:
+
+```shell
+php artisan passport:client
+```
+
+###### Redirect URLs
+
+If you would like to whitelist multiple redirect URLs for your client, you may specify them using a commadelimited list when prompted for the URL by the `passport:client` command:
+
+```
+http://example.com/callback, http://examplefoo.com/callback
+```
+
+> Any URLs  which contains commas must be encoded.
+
+###### JSON API
+
+Since your users will not be able to utilize the `client` command, Passport provides a JSON API that you may use to create clients. This saves you the trouble of having to manually code controllers for creating, updating, and deleting clients.
+
+However, you will need to pair Passport's JSON API with your own frontend to provide a dashboard for your users to manage their clients. Below, we'll review all of the API endpoints for managing clients. For convenience, we'll use **Axios** to demonstrate making HTTP requests to the endpoints.
+
+The JSON API is guarded by the `web` and `auth` middleware; therefore, it may only be called from your own application. It is not able to be called from an external source.
+
+> If you don't want to implement the entire client management frontend yourself, you can use the **frontend quickstart** to have a fully functional frontend in a matter of minutes.
+
+###### GET `/oauth/clients`
+
+This route returns all of the clients for the authenticated user. This is primarily useful for listing all of the user's clients so that they may edit or delete them:
+
+```javascript
+axios.get('/oauth/clients')
+    .then(response => {
+    	console.log(response.data);
+	});
+```
+
+###### POST `/oauth/clients`
+
+This route is used to create new clients. It requires two pieces of data: the clients's `name` and a `redirect` URL. The `redirect` URL is where the user will be redirected after approving or denying a request for authorization.
+
+When a client is created, it will be issued a client ID and client secret. These values will be used when requesting access tokens from your application. The client creation route will return the new client instance:
+
+```javascript
+const data = {
+    name: 'ClientName'
+    redirect: 'http://myapp.com/callback'
+};
+axios.post('/oauth/clients', data)
+    .then(response => {
+    	console.log(response.data)
+	})
+    .catch(response => {
+    	// ...
+	});
+```
+
+###### PUT `/oauth/clients/{client-id}`
+
+This route is used to update clients. It requires two pieces of data: the client's `name` and a `redirect` URL. The `redirect` URL is where the user will be redirected after approving or denying a request for authorization. The route will return the updated client instance:
+
+```javascript
+const data = {
+    name: 'NewClientName'
+    redirect: 'http://myapp.com/callback'
+};
+axios.put('/oauth/clients/' + clientId, data)
+    .then(response => {
+    	console.log(response.data);
+	})
+    .catch(response => {
+    	// ...
+	});
+```
+
+###### DELET `/oauth/clients/{client-id}`
+
+This route is used to delete clients:
+
+```javascript
+axios.delete('/oauth/clients' + clientId)
+    .then(response => {
+    	// ...
+	});
+```
 
 ##### Requesting Tokens
 
+###### Redirecting For Authorization
+
+Once a client has been created, developers may use their client ID and secret to request an authorization code and access token from your application. First, the consuming application should make a redirect request to your application's `/oauth/authorize` route like so:
+
+```javascript
+Route::get('/redirect', function () {
+    $query = http_build_query([
+        'client_id' => 'client-id',
+        'redirect_url' => 'http://example.com/callback',
+        'response_type' => 'code',
+        'scope' => '',
+    ]);
+        
+    return redirect('http://myapp.com/oauth/authorize?' . $query);    
+});
+```
+
+> Remember, the `/oauth/authorize` route is already defined by the `Passport::routes` method. You don't need to manually define this route.
+
+###### Approving the request
+
+When receiving authorization requests, Passport will automatically display a template to the user allowing them to approve or deny the authorization request. If they approve the request, they will be redirected back to the `redirect_uri` that was specified by the consuming application. The `redirect_uri` must match the `redirect` URL that was specified when the client was created.
+
+If you would like to customize the authorization approval screen, you may publish Passport's views using the `vendor:publish`. The published views will be placed in `resources/views/vendor/passport`:
+
+```shell
+php artisan vendor:publish --tag=passport-views
+```
+
+###### Converting Authorization codes to access token
+
+If the user approves the authorization request, they will be redirected back to the consuming application. The consumer should then issue a `POST` request to your application to request an access token. The request should include the authorization code that was issued by your application when the user approved the authorization request. In this example, we'll use the Guzzle HTTP library to make the `POST` request.
+
+```javascript
+Route::get('/callback', function (Request $request) {
+    $http = new GuzzleHttp\Client;
+    
+    $response = $http->post('http://myapp.com/oauth/token', [
+        'form_params' => [
+            'grant_type' => 'authorization_code',
+            'client_id' => 'client-id',
+            'client_secret' => 'client-secret',
+            'redirect_uri' => 'http://myapp.com/callback',
+            'code' => $request->code,
+        ],
+    ]);
+        
+    return json_decode((string) $response->getBody(), true);
+});
+```
+
+The `/oauth/token` route will return a JSON response containing `access_token`, `refresh_token`, and `expires_in` attributes. The `expire_in` attribute contains the number of seconds until the access token expires.
+
+> Like the `/oauth/authorize` route, the `/oauth/token` route is defined for you by the `Passport::routes` method. There is no need to manually define this route. By default, this route is throttled using the settings of the `ThrottleRequests` middleware.
+
 ##### Refreshing Tokens
+
+If your application issues short-lived access tokens, users will need to refresh their access tokens via the refresh token that was provided to them when the access token was issued. In this example, we'll use the GuzzleHttp library to refresh the token:
+
+```php
+$http = new GuzzleHttp\Client;
+$response = $http->post('http://myapp.com/oauth/token', [
+    'form_params' => [
+        'grant_type' => 'refresh_token',
+        'refresh_token' => 'the-refresh-token',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'scope' => '',
+    ],
+]);
+
+return json_decode((string) $response->getBody(), true);
+```
+
+This `/oauth/token` route will return a JSON response containing `access_token`, `refresh_token`, and `expires_in` attributes. The `expires_in` attribute contains the number of secodns until the access token expires.
 
 #### Password Grant Tokens
 
