@@ -1292,6 +1292,73 @@ Each paginator instance provides additional pagination information via the follo
 
 ### 8.4 Migrations
 
+#### Introduction
+
+Migrations are like version control for your database, allowing your team to easily modify and share the application's database schema. Migrations are typically paired with Laravel's schema builder to easily build your application's database schema.
+
+The Laravel `Schema` **facade** provides database agnostic  support for creating and manipulating tables across all of Laravel's supported database systems.
+
+#### Generating Migrations
+
+To create a migration, use the `make:migration:
+
+```php
+php artisan make:migration create_users_table
+```
+
+The new migration will be placed in your `database/migrations` directory. Each migration file name contains a timestamp which allows Laravel to determine the order of the migrations.
+
+The `--table` and `--create` options may also be used to indicate the name of the table and whether the migration will be creating a new table. These options pre-fill the generated migration stub file with the specified table:
+
+```shell
+php artisan make:migration create_users_table --create=users
+php artisan make:migration add_votes_to_users_table --table=users
+```
+
+If you would like to specify a custom output path for the generated migration, you may use the `--path` option when executing the `make:migration` command. The given path should be relative to your application's base path.
+
+#### Migration Structure
+
+A migration class contains two methods: `up` and `down`. The `up` method is used to add new tables, columns, and indexes to your database, while the `down` should reverse the operations performed by the `up` method.
+
+Within both of these methods you may use the Laravel schema builder to expressively create and modify tables. To learn about all of the methods available on the `Schema` builder, checkout the document(/migrations#creating-tables). For example, this migration example creates a `flights` table:
+
+```php
+
+```
+
+
+
+#### Running Migrations
+
+##### Rolling Back Migrations
+
+#### Tables
+
+##### Creating Tables
+
+##### Renaming/Dropping Tables
+
+#### Columns
+
+##### Creating Columns
+
+##### Column Modifiers
+
+##### Modifying Columns
+
+##### Dropping Columns
+
+#### Indexes
+
+##### Creating Indexes
+
+##### Renaming Indexes
+
+##### Dropping Indexes
+
+##### Foreign Key Constraints
+
 ### 8.5 Seeding
 
 ### 8.6 Redis
