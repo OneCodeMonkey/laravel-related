@@ -8555,27 +8555,286 @@ This `/oauth/token` route will return a JSON response containing `access_token`,
 
 #### Password Grant Tokens
 
+The OAuth2 password grant allows your other first-party clients, such as a mobile application, to obtain an access token using an email address / username and password. This allows you to issue access tokens securely to your first-party clients without requiring your users to go through the entire OAuth2 authorization code redirect flow.
+
 ##### Creating A Password Grant Client
+
+Before your application can issue tokens via the password grant you will need to create a password grant client. You may do this using the `passport:client` command with the `--password` option. If you have already run the `password:install` command, you don't need to run this command:
+
+```shell
+php artisan passport:client --password
+```
 
 ##### Requesting Tokens
 
+Once you have created a password grant client, you may request an access token by issuing a `POST` request to the `/oauth/token` route with the user's email address and password. Remember, this route is already registered by the `Passport::routes` method so there is no need to define it manually. If the request is successful, you will receive an `access_token` and `refresh_token` in the JSON response from the server:
+
+```php
+$http = new GuzzleHttp\Client;
+$response = $http->post('http://myapp.com/oauth/token', [
+    'form_params' => [
+        'grant_type' => 'password',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'username' => 'Bob@example.com',
+        'password' => 'XXX',
+        'scope' => '',
+    ],
+]);
+
+return json_encode((string) $response->getBody(), true);
+```
+
+> Remember, access tokens are long-lived by default. However, you are free to **configure your maximum access token lifetime** if need.
+
 ##### Requesting All Scopes
+
+When using the password grant or client credentials grant, you may wish to authorize the token for all of the scopes supported by your application. You can do this by requesting the `*` scope. If you request the `*` scope, the `can` method on the token instance will always return `true`. This scope may only be assigned to a token that is issued using the `password` or `client_credentials` grant.
+
+```php
+$response = $http->post('http://myapp.com/oauth/token', [
+    'form_params' => [
+        'grant_type' => 'password',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'username' => 'Bob@example.com',
+        'password' => 'XXX',
+        'scope' => '*',
+    ],
+]);
+```
 
 ##### Customizing The Username Field
 
+When authenticating using the password grant, Passport will use the `email` attribute of your model as the "username". However, you may customize this behavior by defining a `findForPassport` method on your model.
+
+```php
+<?php
+    
+namespace App;
+
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    /**
+     * Find the user instance for the given username.
+     *
+     * @param  string  $username
+     * @return  \App\User
+     */
+    public function findForPassport($username)
+    {
+        return $this->where('username', $username)->first();
+    }
+}
+```
+
+
+
 #### Implicit Grant Tokens
+
+The implicit grant is similar to the authorization code grant; however, the token is returned to the client without exchanging an authorization code. This grant is most commonly used for JavaScript or mobile applications where the client credentials can't be securely stored. To enable the grant, call the `enableImplicitGrant` method in your `AuthServiceProvider`:
+
+```php
+/**
+ * Register any authentication / authorization services.
+ *
+ * @return  void
+ */
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::enableImplicitGrant();
+}
+```
+
+Once a grant has been enabled, developers may use their client ID to request an access token from your application. The consuming application should make a redirect request to your application's `/oauth/authorize` route like so:
+
+```php
+Route::get('/redirect', function () {
+    $query = http_build_query([
+        'client_id' => 'client-id',
+        'redirect_uri' => 'http://myapp.com/callback',
+        'response_type' => 'token',
+        'scope' => '',
+    ]);
+    
+    return redirect('http://myapp.com/oauth/authorize?' . $query);
+});
+```
+
+> Remember, the `/oauth/authorize` route is already defined by the `Passport::routes` method. You don't need to manually define this route.
 
 #### Client Credentials Grant Tokens
 
+The client credentials grant is suitable for machine-to-machine authentication. For example, you might use this grant in a scheduled job which is performing maintenance tasks over an API.
+
+Before your application can issue tokens via the client credentials grant, you will need to create a client credentials grant client. You may do thsi using the `--client` option of the `passport:client` command:
+
+```shell
+php artisan passport:client --client
+```
+
+Next, to use this grant type, you need to add the `CheckClientCredentials` middleware to the `$routeMiddleware` property of your `app/Http/Kernel.php` file:
+
+```php
+use Laravel\Passport\Http\Middleware\CheckClientCredentials;
+
+protected $routeMiddleware = [
+    'client' => CheckClientCredentials::class,
+];
+```
+
+Then, attach the middleware to a route:
+
+```php
+Route::get('/orders', function (Request $request) {
+    // ...
+})->middleware('client');
+```
+
+To restrict access to the route to specific scopes you may provide a comma-delimited list off the required scopes when attaching the `client` middleware to the route:
+
+```php
+Route::get('/orders', function (Request $request) {
+    // ...
+})->middleware('client:check-status, your-scope');
+```
+
+##### Retrieving Tokens
+
+To retrieve a token using this grant type, make a request to the `/oauth/token`endpoint:
+
+```php
+$guzzle = new GuzzleHttp\Client;
+
+$response = $guzzle->post('http://myapp.com/oauth/token', [
+    'form_params' => [
+        'grant_type' => 'client_credentials',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'scope' => 'your-scope',
+    ],
+]);
+
+return json_decode((string)  $response->getBody(), true)['access_token'];
+```
+
+
+
 #### Personal Access Tokens
+
+Sometimes, your users may want to issue access tokens to themselves without going through the typical authorization code redirect flow. Allowing users to issue tokens to themselves via your application's UI can be useful for allowing users to experiment with your API or may serve as a simpler approach to issuing access tokens in general.
+
+> Personal access tokens are always long-lived. Their lifetime is not modified when using the `tokensExpireIn` or `refreshTokensExpireIn` methods.
 
 ##### Creating A personal access client
 
+Before your application can issue personal access tokens, you will need to create a personal access client. You may do this using the `passport:client` command with the `--personal` option. If you have already run the `passport:install` command, you don't need to run this command:
+
+```shell
+php artisan passport:client --personal
+```
+
+If you have already defined a personal access client, you may instruct Passport to use it using the `personalAccessClientId` method. Typically, this method should be called from the `boot` method of your `AuthServiceProvider`:
+
+```php
+/**
+ * Register any authentication / authorization services.
+ *
+ * @return  void
+ */
+public function boot()
+{
+    $this->registerPolicies();
+    Passport::routes();
+    Passport::personalAccessClientId('client-id');
+}
+```
+
+
+
 ##### Managing Personal access tokens
+
+Once you have created a personal access client, you may issue tokens for a given user using the `createToken` method on the `User` model instance. The `createToken` method accepts the name of the token as its first argument and an optional array of **scopes** as its second argument:
+
+```php
+$user = App\User::find(1);
+
+// Creating a token without scopes...
+$token = $user->createToken('Token Name')->accessToken;
+
+// Creating a token with scopes...
+$token = $user->createToken('MyToken', ['place-orders'])->accessToken;
+```
+
+######  JSON API
+
+Passport also includes a JSON API for managing personal access tokens. You may pair this with your own frontend to offer your users a dashboard for managing personal access tokens. Below, we'll review all of the API endpoints for managing personal access tokens. For convenience, we'll user **Axios** to demonstrate makeing HTTP requests to the endpoints.
+
+The JSON API is guarded by the `web` and `auth` middleware; therefore, it may only be called from your own application. It is not able to be called from an external source.
+
+> If you don't want to implement the personal access token frontend yourself, you can use the **frontend quickstart** to have a fully functional frontend in a matter of minutes.
+
+###### GET `/oauth/scopes`
+
+This route returns all of the **scopes** defined for your application. You may use this route to list the scopes a user may assign to a personal access token:
+
+```javascript
+axios.get('/oauth/scopes')
+    .then(response => {
+    	console.log(response.data);
+	});
+```
+
+###### GET `/oauth/personal-access-tokens`
+
+This route returns all of the personal access tokens that the authenticated user has created. This is primarily userful for listing all of the user's tokens so that they may edit or delete them:
+
+```javascript
+axios.get('/oauth/personal-access-tokens')
+    .then(response => {
+    	console.log(response.data);
+	});
+```
+
+###### POST `/oauth/personal-access-tokens`
+
+This route creates new personal access tokens. It requires two pieces of data: the token's `name` and the `scopes` that should be assigned to the token:
+
+```javascript
+const data = {
+    name: 'Token Name',
+    scopes: []
+};
+axios.post('/oauth/personal-access-tokens', data)
+    .then(response => {
+    	console.log(response.data.accessToken);
+	})
+    .catch($response => {
+    	// List errors on response...
+	});
+```
+
+###### DELETE `/oauth/personal-access-token/{token-id}`
+
+This route may be used to delete personal access tokens:
+
+```javascript
+axios.delete('/oauth/personal-access-tokens/' + tokenId);
+```
+
+
 
 #### Protecting Routes
 
 ##### Via Middleware
+
+Passport includes 
 
 ##### Passing The Access Token
 
